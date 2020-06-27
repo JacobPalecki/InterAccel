@@ -25,6 +25,7 @@ int main()
 		accelSens,
 		rate,
 		power,
+		scale,
 		carryX = 0,
 		carryY = 0,
 		var_sens = 1,
@@ -32,6 +33,7 @@ int main()
 		var_senscap = 0,
 		var_offset = 0,
 		var_power = 2,
+		var_exponent = 0,
 		var_preScaleX = 1,
 		var_preScaleY = 1,
 		var_postScaleX = 1,
@@ -117,6 +119,10 @@ int main()
 			{
 				var_power = variableValue;
 			}
+			else if (strcmp(variableName, "Exponent") == 0)
+			{
+				var_exponent = variableValue;
+			}
 			else if (strcmp(variableName, "Pre-ScaleX") == 0)
 			{
 				var_preScaleX = variableValue;
@@ -171,7 +177,7 @@ int main()
 	printf("\nYour settings are:\n");
 
 	SetConsoleTextAttribute(hConsole, 0x02);
-	printf("Sensitivity: %f\nAcceleration: %f\nSensitivity Cap: %f\nOffset: %f\nPower: %f\nPre-Scale: x:%f, y:%f\nPost-Scale: x:%f, y:%f\nAngle Correction: %f\nAngle Snapping: %f\nSpeed Cap: %f\n\n", var_sens, var_accel, var_senscap, var_offset, var_power, var_preScaleX, var_preScaleY, var_postScaleX, var_postScaleY, var_angle, var_angleSnap, var_speedCap);
+	printf("Sensitivity: %f\nAcceleration: %f\nSensitivity Cap: %f\nOffset: %f\nPower: %f\nExponent: %f\nPre-Scale: x:%f, y:%f\nPost-Scale: x:%f, y:%f\nAngle Correction: %f\nAngle Snapping: %f\nSpeed Cap: %f\n\n", var_sens, var_accel, var_senscap, var_offset, var_power, var_exponent, var_preScaleX, var_preScaleY, var_postScaleX, var_postScaleY, var_angle, var_angleSnap, var_speedCap);
 	SetConsoleTextAttribute(hConsole, 0x08);
 
 
@@ -303,10 +309,17 @@ int main()
 					if (rate > 0) {
 						rate *= var_accel;
 						power = var_power - 1;
-						if (power < 0) {
-							power = 0;							// clamp power at lower bound of 0
+						if (power > 0) {
+							accelSens += exp(power * log(rate));		// acceptable substitute for the missing pow() function
 						}
-						accelSens += exp(power * log(rate));		// acceptable substitute for the missing pow() function
+						else                                            // For test purposes - use experimental power accel when linear style power <= 1
+						{
+							scale = exp((var_exponent-1) * log(rate));  // Workable settings are var_accel = 1, 1 < var_exponent < ~1.2 (cs:go is ((1.05+1)/2) = 1.025 default)
+
+							if (scale > 1) {
+								accelSens *= scale;                     // Restrict to scale > 1 to avoid negative accel when frametime_ms is large
+							}
+						}
 					}
 
 					if (debugOutput) {
